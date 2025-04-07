@@ -81,8 +81,8 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'stockify_db',  
-        'USER': 'root',         
-        'PASSWORD': 'joaco711',  
+        'USER': 'stockify_user',         
+        'PASSWORD': '9Slik4BanFXQ',  
         'HOST': 'localhost',          
         'PORT': '3306',               
         'OPTIONS': {
