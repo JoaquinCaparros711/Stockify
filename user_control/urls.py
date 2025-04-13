@@ -1,11 +1,11 @@
 from rest_framework.routers import DefaultRouter
+from rest_framework import routers
 from django.urls import path, include
-from .views import User
+from user_control import views
 
-# Sin usar router para estas views "manuales"
+router = routers.DefaultRouter()
+router.register(r'register', views.UserView, basename='register')
+
 urlpatterns = [
-    path('register/', User.as_view(), name='register'),
-    # path('login/', User.as_view(), name='login'),
-    # path('logout/', User.as_view(), name='logout'),
-    # path('me/', User, name='current_user'),
+    path('register/', include(router.urls))
 ]
