@@ -150,6 +150,4 @@ REST_FRAMEWORK = {
 }
 
 CORS_ALLOWED_ORIGINS = []
-
-
-
+AUTH_USER_MODEL = 'user_control.Users'

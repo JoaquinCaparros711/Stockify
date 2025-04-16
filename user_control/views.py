@@ -14,7 +14,7 @@ class UserView(viewsets.ModelViewSet):
     
 class LoginView(APIView):
     def post(self, request):
-        username = request.data.get("name")
+        username = request.data.get("username")
         password = request.data.get("password")
         user = authenticate(request, username=username, password=password)
         if user is not None:
