@@ -8,5 +8,7 @@ router.register(r'register', views.UserView, basename='register')
 
 # Sin usar router para estas views "manuales"
 urlpatterns = [
-    path('register/', include(router.urls))
+    path('register/', include(router.urls)),
+    path('login/', views.LoginView.as_view(), name='login'),
+    path('logout/', views.LogoutView.as_view(), name='logout'),
 ]
