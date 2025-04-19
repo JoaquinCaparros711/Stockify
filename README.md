@@ -84,6 +84,7 @@ cd backend
 ```bash
 python -m venv env
 source env/bin/activate
+pip install -r requirements.txt
 ```
 
 3. Crear base de datos en MySQL:
