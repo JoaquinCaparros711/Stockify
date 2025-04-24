@@ -1,15 +1,18 @@
 from django.shortcuts import render
-from rest_framework import viewsets
 from .serializer import *
 from .models import *
+from rest_framework import permissions, viewsets
+from user_control.permissions import IsAdminUserCustom
 
 
 # Create your views here.
 class CompanyView(viewsets.ModelViewSet):
+    permission_classes = [permissions.IsAuthenticated, IsAdminUserCustom]
     serializer_class = CompanySerializer
-    queryset = Company.objects.all()
+    queryset = Company.objects.all() 
 
 class BranchView(viewsets.ModelViewSet):
+    permission_classes = [permissions.IsAuthenticated, IsAdminUserCustom]
     serializer_class = BranchSerializer
     queryset = Branch.objects.all()
     
@@ -18,6 +21,7 @@ class BranchView(viewsets.ModelViewSet):
 #     queryset = User.objects.all()
     
 class ProductView(viewsets.ModelViewSet):
+    permission_classes = [permissions.IsAuthenticated, IsAdminUserCustom]
     serializer_class = ProductSerializer
     queryset = Product.objects.all()
     

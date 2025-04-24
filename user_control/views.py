@@ -1,5 +1,4 @@
 from django.shortcuts import render
-from rest_framework import viewsets
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, serializers
@@ -7,9 +6,10 @@ from django.contrib.auth import authenticate, login, logout
 from rest_framework.permissions import IsAuthenticated
 from user_control.models import Users
 from .serializer import UserSerializer
-from rest_framework import permissions
-from rest_framework import generics
-from user_control import models, serializer
+from rest_framework import generics, permissions, viewsets
+from user_control import serializer
+from user_control.permissions import IsAdminUserCustom
+
     
 class UserView(viewsets.ModelViewSet):
     serializer_class = UserSerializer
@@ -38,7 +38,7 @@ class LogoutView(APIView):
 
 class CreateUserByAdminView(generics.CreateAPIView):
     serializer_class = serializer.UserCreateByAdminSerializer
-    permission_classes = [permissions.IsAuthenticated]  # ✅ Solo usuarios logueados
+    permission_classes = [permissions.IsAuthenticated, IsAdminUserCustom]  # ✅ Solo usuarios logueados
 
     def perform_create(self, serializer):
         # Validar que sea admin
@@ -51,7 +51,7 @@ class CreateUserByAdminView(generics.CreateAPIView):
 
 class CreateBranchByAdminView(generics.CreateAPIView):
     serializer_class = serializer.BranchCreateByAdminSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsAdminUserCustom]
 
     def perform_create(self, serializer):
         user = self.request.user
