@@ -47,14 +47,25 @@ class BranchStockSerializer(serializers.ModelSerializer):
     class Meta:
         model = BranchStock
         fields = '__all__'
-        
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-
 
         request = self.context.get('request')
         if request and hasattr(request.user, 'company'):
             self.fields['branch'].queryset = Branch.objects.filter(company=request.user.company)
+
+    def validate(self, attrs):
+        product = attrs.get('product')
+        branch = attrs.get('branch')
+
+        # Si se está creando (no actualizando)
+        if self.instance is None:
+            if BranchStock.objects.filter(product=product, branch=branch).exists():
+                raise serializers.ValidationError("Este producto ya está registrado en esa sucursal.")
+
+        return attrs
+
         
 class StockMovementSerializer(serializers.ModelSerializer):
     class Meta:
