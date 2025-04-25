@@ -24,13 +24,24 @@ class BranchSerializer(serializers.ModelSerializer):
 class ProductSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
-        fields = ['id', 'name', 'description', 'category', 'price']  # No incluir 'company' ni 'total_stock'
+        fields = ['id', 'name', 'description', 'category', 'price']
+
+    def validate(self, attrs):
+        request = self.context.get('request')
+        company = request.user.company
+        name = attrs.get('name')
+
+        # Verifica si ya existe un producto con ese nombre para la misma empresa
+        if Product.objects.filter(name__iexact=name, company=company).exists():
+            raise serializers.ValidationError({'name': 'Ya existe un producto con este nombre.'})
+
+        return attrs
 
     def create(self, validated_data):
         request = self.context.get('request')
         company = request.user.company
-        product = Product.objects.create(company=company, **validated_data)
-        return product
+        return Product.objects.create(company=company, **validated_data)
+
         
 class BranchStockSerializer(serializers.ModelSerializer):
     class Meta:
@@ -52,35 +63,49 @@ class StockMovementSerializer(serializers.ModelSerializer):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-
         request = self.context.get('request')
         if request and hasattr(request.user, 'company'):
             self.fields['branch'].queryset = Branch.objects.filter(company=request.user.company)
 
+    def validate(self, attrs):
+        quantity = attrs.get('quantity')
+        movement_type = attrs.get('movement_type')
+        branch = attrs.get('branch')
+        product = attrs.get('product')
+
+        if quantity == 0:
+            raise serializers.ValidationError('No puede ingresar o sacar cantidad 0')
+
+        # Validar si hay stock suficiente antes de restar
+        if movement_type == 'outgoing':
+            branch_stock = BranchStock.objects.filter(branch=branch, product=product).first()
+            available = branch_stock.current_stock if branch_stock else 0
+            if quantity > available:
+                raise serializers.ValidationError(f'No hay stock suficiente. Disponible: {available}')
+
+        return attrs
+
     def create(self, validated_data):
         request = self.context.get('request')
-        user = request.user
-        validated_data['user'] = user
+        validated_data['user'] = request.user
 
-        # Creamos el movimiento
-        movement = super().create(validated_data)
+        branch = validated_data['branch']
+        product = validated_data['product']
+        quantity = validated_data['quantity']
+        movement_type = validated_data['movement_type']
 
-        branch = movement.branch
-        product = movement.product
-        quantity = movement.quantity
-
-        branch_stock, created = BranchStock.objects.get_or_create(
+        branch_stock, _ = BranchStock.objects.get_or_create(
             branch=branch,
             product=product,
             defaults={'current_stock': 0}
         )
 
-        if movement.movement_type == 'incoming':
+        # Ya está validado que hay stock suficiente
+        if movement_type == 'incoming':
             branch_stock.current_stock += quantity
-        elif movement.movement_type == 'outgoing':
-            if branch_stock.current_stock < quantity:
-                raise serializers.ValidationError(f'No hay stock suficiente. Disponible: {branch_stock.current_stock}')
+        elif movement_type == 'outgoing':
             branch_stock.current_stock -= quantity
 
         branch_stock.save()
-        return movement
+
+        return super().create(validated_data)
