@@ -7,26 +7,44 @@ class CompanySerializer(serializers.ModelSerializer):
     class Meta:
         model = Company
         fields = '__all__'
+    
+    def validate_name(self, value):
+        if value.isdigit():
+            raise serializers.ValidationError("El nombre no puede ser solo números. Ingrese un nombre válido.")
+        return value
+    
+    def validate_cuit(self, value):
+        if not value.isdigit():
+            raise serializers.ValidationError("El cuit no puede contener letras.")
+        return value
+    
+    def validate_phone(self, value):
+        if not value.isdigit():
+            raise serializers.ValidationError("El número no puede contener letras.")
+        return value
+    
 
 
-# class BranchSerializer(serializers.ModelSerializer):
-#     class Meta:
-#         model = Branch
-#         fields = ['id', 'name', 'address', 'phone']
-#         extra_kwargs = {
-#             'name': {'required': True},
-#             'address': {'required': True},
-#             'phone': {'required': True},
-#         }
+class BranchSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Branch
+        fields = ['id', 'name', 'address', 'phone']
+        extra_kwargs = {
+            'name': {'required': True},
+            'address': {'required': True},
+            'phone': {'required': True},
+        }
 
-#     def validate_name(self, value):
-#         if value.isdigit():
-#             raise serializers.ValidationError("El nombre no puede ser solo números. Ingrese un nombre válido.")
-#         return value
+    def validate_name(self, value):
+        if value.isdigit():
+            raise serializers.ValidationError("El nombre no puede ser solo números. Ingrese un nombre válido.")
+        return value
+    
+    def validate_phone(self, value):
+        if not value.isdigit():
+            raise serializers.ValidationError("El número no puede contener letras.")
+        return value
 
-#     def create(self, validated_data):
-#         company = self.context['request'].user.company
-#         return Branch.objects.create(company=company, **validated_data)
     
     
 

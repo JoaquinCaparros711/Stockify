@@ -18,35 +18,28 @@ class CompanyView(mixins.UpdateModelMixin, mixins.RetrieveModelMixin, viewsets.G
 
 
 
-# class BranchView(viewsets.ModelViewSet):
-#     permission_classes = [permissions.IsAuthenticated, IsAdminUserCustom]
-#     serializer_class = BranchSerializer
+class BranchView(
+    mixins.RetrieveModelMixin,
+    mixins.UpdateModelMixin,
+    mixins.DestroyModelMixin,
+    mixins.ListModelMixin,
+    viewsets.GenericViewSet
+):
+    permission_classes = [permissions.IsAuthenticated, IsAdminUserCustom]
+    serializer_class = BranchSerializer
 
-#     def get_queryset(self):
-#         return Branch.objects.filter(company=self.request.user.company)
+    def get_queryset(self):
+        return Branch.objects.filter(company=self.request.user.company)
 
-#     def perform_create(self, serializer):
-#         user = self.request.user
-#         name = serializer.validated_data.get('name')
-        
-#         if user.role != 'admin':
-#             raise serializers.ValidationError({"detail": "Solo los administradores pueden crear usuarios."})
+    def perform_update(self, serializer):
+        if serializer.instance.company != self.request.user.company:
+            raise serializers.ValidationError("No tienes permiso para modificar esta sucursal.")
+        serializer.save()
 
-#         # Validar duplicado
-#         if Branch.objects.filter(name=name, company=user.company).exists():
-#             raise serializers.ValidationError({'name': 'Ya existe una sucursal con ese nombre en tu empresa.'})
-
-#         serializer.save(company=user.company)
-
-#     def perform_update(self, serializer):
-#         if serializer.instance.company != self.request.user.company:
-#             raise serializers.ValidationError("No tienes permiso para modificar esta sucursal.")
-#         serializer.save()
-
-#     def perform_destroy(self, instance):
-#         if instance.company != self.request.user.company:
-#             raise serializers.ValidationError("No tienes permiso para eliminar esta sucursal.")
-#         instance.delete()
+    def perform_destroy(self, instance):
+        if instance.company != self.request.user.company:
+            raise serializers.ValidationError("No tienes permiso para eliminar esta sucursal.")
+        instance.delete()
     
 
 class ProductView(viewsets.ModelViewSet):
