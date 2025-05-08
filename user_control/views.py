@@ -13,7 +13,9 @@ from user_control.permissions import IsAdminUserCustom
     
 class UserView(viewsets.ModelViewSet):
     serializer_class = UserSerializer
-    queryset = Users.objects.all()
+    def get_queryset(self):
+        user = self.request.user
+        return Users.objects.filter(company=user.company)
     
 class LoginView(APIView):
     def post(self, request):

@@ -12,7 +12,11 @@ class CompanySerializer(serializers.ModelSerializer):
 class BranchSerializer(serializers.ModelSerializer):
     class Meta:
         model = Branch
-        fields = '__all__'
+        fields = ['id', 'name', 'address', 'phone']  # No incluimos 'company'
+
+    def create(self, validated_data):
+        company = self.context['request'].user.company
+        return Branch.objects.create(company=company, **validated_data)
     
     
 
@@ -31,16 +35,16 @@ class ProductSerializer(serializers.ModelSerializer):
         company = request.user.company
         name = attrs.get('name')
 
-        # Verifica si ya existe un producto con ese nombre para la misma empresa
-        if Product.objects.filter(name__iexact=name, company=company).exists():
-            raise serializers.ValidationError({'name': 'Ya existe un producto con este nombre.'})
+        # Excluir el producto actual (en caso de update)
+        product_qs = Product.objects.filter(name__iexact=name, company=company)
+        if self.instance:
+            product_qs = product_qs.exclude(pk=self.instance.pk)
 
+        if product_qs.exists():
+            raise serializers.ValidationError({'name': 'Ya existe un producto con este nombre.'})
+        
         return attrs
 
-    def create(self, validated_data):
-        request = self.context.get('request')
-        company = request.user.company
-        return Product.objects.create(company=company, **validated_data)
 
         
 class BranchStockSerializer(serializers.ModelSerializer):
@@ -53,18 +57,33 @@ class BranchStockSerializer(serializers.ModelSerializer):
 
         request = self.context.get('request')
         if request and hasattr(request.user, 'company'):
-            self.fields['branch'].queryset = Branch.objects.filter(company=request.user.company)
+            # Filtrar sucursales según el rol
+            if request.user.role == 'admin':
+                self.fields['branch'].queryset = Branch.objects.filter(company=request.user.company)
+                self.fields['product'].queryset = Product.objects.filter(company=request.user.company)
+            elif request.user.role == 'employee':
+                self.fields['branch'].queryset = Branch.objects.filter(pk=request.user.branch_id)
+                self.fields['product'].queryset = Product.objects.filter(company=request.user.company)
 
     def validate(self, attrs):
         product = attrs.get('product')
         branch = attrs.get('branch')
 
-        # Si se está creando (no actualizando)
-        if self.instance is None:
-            if BranchStock.objects.filter(product=product, branch=branch).exists():
-                raise serializers.ValidationError("Este producto ya está registrado en esa sucursal.")
+        if not product or not branch:
+            return attrs  # Evitar errores si aún no están definidos
+
+        # Validar si ya existe esa combinación producto + sucursal
+        qs = BranchStock.objects.filter(product=product, branch=branch)
+
+        # Si estamos actualizando, excluimos este mismo objeto
+        if self.instance:
+            qs = qs.exclude(pk=self.instance.pk)
+
+        if qs.exists():
+            raise serializers.ValidationError("Este producto ya está registrado en esa sucursal.")
 
         return attrs
+
 
         
 class StockMovementSerializer(serializers.ModelSerializer):
