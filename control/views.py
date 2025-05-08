@@ -59,12 +59,6 @@ class ProductView(viewsets.ModelViewSet):
             return Product.objects.filter(company=user.company)
         return Product.objects.none()
 
-    def get_permissions(self):
-        user = self.request.user
-        if user.role == 'admin' or user.role == 'employee':
-            return [permissions.IsAuthenticated()]
-        return [permissions.IsAdminUser()]  # bloquear otras acciones para empleados
-
     def perform_create(self, serializer):
         serializer.save(company=self.request.user.company)
     
