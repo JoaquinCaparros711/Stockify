@@ -118,7 +118,12 @@ class BranchStockSerializer(serializers.ModelSerializer):
 class StockMovementSerializer(serializers.ModelSerializer):
     class Meta:
         model = StockMovement
-        fields = ['movement_type', 'quantity', 'description', 'product', 'branch']
+        fields = ['id', 'movement_type', 'quantity', 'description', 'product', 'branch']
+        
+    def validate_quantity(self, value):
+        if value < 0:
+            raise serializers.ValidationError("El stock actual no puede ser menor a 0.")
+        return value
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
