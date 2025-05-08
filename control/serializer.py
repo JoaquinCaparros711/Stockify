@@ -9,26 +9,46 @@ class CompanySerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-class BranchSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Branch
-        fields = ['id', 'name', 'address', 'phone']  # No incluimos 'company'
-
-    def create(self, validated_data):
-        company = self.context['request'].user.company
-        return Branch.objects.create(company=company, **validated_data)
-    
-    
-
-# class UserSerializer(serializers.ModelSerializer):
+# class BranchSerializer(serializers.ModelSerializer):
 #     class Meta:
-#         model = User
-#         fields = '__all__'
+#         model = Branch
+#         fields = ['id', 'name', 'address', 'phone']
+#         extra_kwargs = {
+#             'name': {'required': True},
+#             'address': {'required': True},
+#             'phone': {'required': True},
+#         }
+
+#     def validate_name(self, value):
+#         if value.isdigit():
+#             raise serializers.ValidationError("El nombre no puede ser solo números. Ingrese un nombre válido.")
+#         return value
+
+#     def create(self, validated_data):
+#         company = self.context['request'].user.company
+#         return Branch.objects.create(company=company, **validated_data)
+    
+    
 
 class ProductSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
         fields = ['id', 'name', 'description', 'category', 'price']
+        extra_kwargs = {
+            'name': {'required': True},
+            'category': {'required': True},
+            'price': {'required': True},
+        }
+        
+    def validate_name(self, value):
+        if value.isdigit():
+            raise serializers.ValidationError("El nombre no puede ser solo números. Ingrese un nombre válido.")
+        return value
+    
+    def validate_price(self, value):
+        if value <= 0:
+            raise serializers.ValidationError("El precio no puede 0 o negativo.")
+        return value
 
     def validate(self, attrs):
         request = self.context.get('request')
@@ -51,6 +71,15 @@ class BranchStockSerializer(serializers.ModelSerializer):
     class Meta:
         model = BranchStock
         fields = '__all__'
+        extra_kwargs = {
+            'product': {'required': True},
+            'branch': {'required': True},
+        }
+        
+    def validate_current_stock(self, value):
+        if value < 0:
+            raise serializers.ValidationError("El stock actual no puede ser menor a 0.")
+        return value
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -95,7 +124,13 @@ class StockMovementSerializer(serializers.ModelSerializer):
         super().__init__(*args, **kwargs)
         request = self.context.get('request')
         if request and hasattr(request.user, 'company'):
-            self.fields['branch'].queryset = Branch.objects.filter(company=request.user.company)
+            # Filtrar sucursales según el rol
+            if request.user.role == 'admin':
+                self.fields['branch'].queryset = Branch.objects.filter(company=request.user.company)
+                self.fields['product'].queryset = Product.objects.filter(company=request.user.company)
+            elif request.user.role == 'employee':
+                self.fields['branch'].queryset = Branch.objects.filter(pk=request.user.branch_id)
+                self.fields['product'].queryset = Product.objects.filter(company=request.user.company)
 
     def validate(self, attrs):
         quantity = attrs.get('quantity')

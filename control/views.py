@@ -18,32 +18,35 @@ class CompanyView(mixins.UpdateModelMixin, mixins.RetrieveModelMixin, viewsets.G
 
 
 
-class BranchView(viewsets.ModelViewSet):
-    permission_classes = [permissions.IsAuthenticated, IsAdminUserCustom]
-    serializer_class = BranchSerializer
+# class BranchView(viewsets.ModelViewSet):
+#     permission_classes = [permissions.IsAuthenticated, IsAdminUserCustom]
+#     serializer_class = BranchSerializer
 
-    def get_queryset(self):
-        return Branch.objects.filter(company=self.request.user.company)
+#     def get_queryset(self):
+#         return Branch.objects.filter(company=self.request.user.company)
 
-    def perform_create(self, serializer):
-        user = self.request.user
-        name = serializer.validated_data.get('name')
+#     def perform_create(self, serializer):
+#         user = self.request.user
+#         name = serializer.validated_data.get('name')
+        
+#         if user.role != 'admin':
+#             raise serializers.ValidationError({"detail": "Solo los administradores pueden crear usuarios."})
 
-        # Validar duplicado
-        if Branch.objects.filter(name=name, company=user.company).exists():
-            raise serializers.ValidationError({'name': 'Ya existe una sucursal con ese nombre en tu empresa.'})
+#         # Validar duplicado
+#         if Branch.objects.filter(name=name, company=user.company).exists():
+#             raise serializers.ValidationError({'name': 'Ya existe una sucursal con ese nombre en tu empresa.'})
 
-        serializer.save(company=user.company)
+#         serializer.save(company=user.company)
 
-    def perform_update(self, serializer):
-        if serializer.instance.company != self.request.user.company:
-            raise serializers.ValidationError("No tienes permiso para modificar esta sucursal.")
-        serializer.save()
+#     def perform_update(self, serializer):
+#         if serializer.instance.company != self.request.user.company:
+#             raise serializers.ValidationError("No tienes permiso para modificar esta sucursal.")
+#         serializer.save()
 
-    def perform_destroy(self, instance):
-        if instance.company != self.request.user.company:
-            raise serializers.ValidationError("No tienes permiso para eliminar esta sucursal.")
-        instance.delete()
+#     def perform_destroy(self, instance):
+#         if instance.company != self.request.user.company:
+#             raise serializers.ValidationError("No tienes permiso para eliminar esta sucursal.")
+#         instance.delete()
     
 
 class ProductView(viewsets.ModelViewSet):
@@ -121,20 +124,6 @@ class BranchStockView(viewsets.ModelViewSet):
             raise PermissionDenied("No puedes borrar stock de otra empresa o si no sos admin.")
         return super().destroy(request, *args, **kwargs)
 
-    def update(self, request, *args, **kwargs):
-        instance = self.get_object()
-        user = request.user
-        if user.role != 'admin' or instance.branch.company != user.company:
-            raise PermissionDenied("No puedes modificar stock de otra empresa o si no sos admin.")
-        return super().update(request, *args, **kwargs)
-
-    def destroy(self, request, *args, **kwargs):
-        instance = self.get_object()
-        user = request.user
-        if user.role != 'admin' or instance.branch.company != user.company:
-            raise PermissionDenied("No puedes borrar stock de otra empresa o si no sos admin.")
-        return super().destroy(request, *args, **kwargs)
-
     
 class StockMovementView(viewsets.ModelViewSet):
     serializer_class = StockMovementSerializer
@@ -149,3 +138,33 @@ class StockMovementView(viewsets.ModelViewSet):
             # Empleado: solo movimientos de su sucursal
             return StockMovement.objects.filter(branch=user.branch)
         return StockMovement.objects.none()
+    
+    def perform_create(self, serializer):
+        user = self.request.user
+        branch = serializer.validated_data.get('branch')
+        product = serializer.validated_data.get('product')
+
+        if user.role == 'employee' and branch != user.branch:
+            raise PermissionDenied("No puedes agregar productos a otra sucursal que no sea la tuya.")
+
+        if branch.company != user.company:
+            raise PermissionDenied("La sucursal no pertenece a tu empresa.")
+
+        if product.company != user.company:
+            raise PermissionDenied("No puedes agregar productos que no pertenezcan a tu empresa.")
+
+        serializer.save()
+
+    def update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        user = request.user
+        if instance.branch.company != user.company:
+            raise PermissionDenied("No puedes modificar stock de otra empresa.")
+        return super().update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        user = request.user
+        if user.role != 'admin' or instance.branch.company != user.company:
+            raise PermissionDenied("No puedes borrar stock de otra empresa o si no sos admin.")
+        return super().destroy(request, *args, **kwargs)
