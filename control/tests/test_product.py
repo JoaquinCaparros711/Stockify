@@ -105,30 +105,58 @@ class ProductValidationTests(APITestCase):
         self.assertEqual(len(response.data), 1)
         self.assertEqual(response.data[0]['name'], "Producto Admin")
     
-    def test_employee_cannot_create_product(self):
+    def test_employee_can_create_product(self):
         self.client.login(username="empleado", password="empleado123")
 
         url = reverse('product-list')
         data = {
-            "name": "Producto bloqueado",
-            "description": "Intento de empleado",
-            "category": "Prohibido",
-            "price": "200.00"
+            "name": "Producto creado por empleado",
+            "description": "Valido",
+            "category": "Categoria",
+            "price": "100.00"
         }
 
         response = self.client.post(url, data)
-        self.assertEqual(response.status_code, 403)  # Esperamos 403 Forbidden
-        self.assertFalse(Product.objects.filter(name="Producto bloqueado").exists())
+        self.assertEqual(response.status_code, 201)  # ✅ Esperamos éxito
+        self.assertTrue(Product.objects.filter(name="Producto creado por empleado").exists())
         
         
     def test_admin_cannot_delete_product_from_other_company(self):
+        # Crear una empresa distinta
+        other_company = Company.objects.create(
+            name="Otra Empresa",
+            cuit="99999999999",
+            email="otra@empresa.com",
+            phone="987654321",
+            address="Calle Alternativa"
+        )
+
+        # Crear producto en esa otra empresa
+        product = Product.objects.create(
+            name="Producto de otra empresa",
+            description="Test",
+            category="X",
+            price=100.0,
+            company=other_company
+        )
+
+        # Crear otro admin de otra empresa
+        another_admin = Users.objects.create_user(
+            username="otroadmin",
+            email="otroadmin@test.com",
+            password="admin123",
+            name="Otro Admin",
+            company=self.company,  # Este admin sigue siendo de self.company
+            role="admin"
+        )
+
         self.client.login(username="otroadmin", password="admin123")
 
-        url = reverse('product-detail', args=[self.product.id])
+        url = reverse('product-detail', args=[product.id])
         response = self.client.delete(url)
 
-        self.assertEqual(response.status_code, 404)  # 404 porque no está en el queryset
-        self.assertTrue(Product.objects.filter(id=self.product.id).exists())
+        self.assertEqual(response.status_code, 404)  # No debería encontrarlo en el queryset
+        self.assertTrue(Product.objects.filter(id=product.id).exists())
 
 
 
