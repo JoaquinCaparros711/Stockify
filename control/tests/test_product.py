@@ -157,6 +157,19 @@ class ProductValidationTests(APITestCase):
 
         self.assertEqual(response.status_code, 404)  # No debería encontrarlo en el queryset
         self.assertTrue(Product.objects.filter(id=product.id).exists())
+    
+    def test_unauthenticated_user_cannot_create_product(self):
+        self.client.logout()  # Asegura que no haya sesión activa
+
+        data = {
+            "name": "Producto sin login",
+            "description": "Debe fallar",
+            "category": "General",
+            "price": "150.00"
+        }
+
+        response = self.client.post(self.url, data)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
 
 
