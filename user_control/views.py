@@ -8,8 +8,11 @@ from .serializer import UserSerializer
 from rest_framework import generics, permissions, viewsets, status, serializers
 from user_control import serializer
 from user_control.permissions import IsAdminUserCustom
-
+from rest_framework_simplejwt.tokens import RefreshToken  # Para manejar tokens JWT
     
+
+
+
 class UserView(viewsets.ModelViewSet):
     serializer_class = UserSerializer
 
@@ -75,26 +78,39 @@ class UserView(viewsets.ModelViewSet):
         # empleados no pueden borrar
         return Response({"detail": "No tienes permiso para eliminar usuarios."}, status=status.HTTP_403_FORBIDDEN)
     
-class LoginView(APIView):
-    def post(self, request):
-        username = request.data.get("username")
-        password = request.data.get("password")
-        user = authenticate(request, username=username, password=password)
-        if user is not None:
-            login(request, user)
-            return Response({
-                "message": "Login exitoso",
-                "username": user.username,
-                "role": user.role
-            }, status=status.HTTP_200_OK)
-        return Response({"error": "Credenciales inválidas"}, status=status.HTTP_400_BAD_REQUEST)
+# class LoginView(APIView):
+#     def post(self, request):
+#         username = request.data.get("username")
+#         password = request.data.get("password")
+#         user = authenticate(request, username=username, password=password)
+#         if user is not None:
+#             login(request, user)
+#             return Response({
+#                 "message": "Login exitoso",
+#                 "username": user.username,
+#                 "role": user.role
+#             }, status=status.HTTP_200_OK)
+#         return Response({"error": "Credenciales inválidas"}, status=status.HTTP_400_BAD_REQUEST)
 
 class LogoutView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        logout(request)
-        return Response({"message": "Logout exitoso"}, status=status.HTTP_200_OK)
+        # Si estás usando JWT, el logout invalida el refresh token
+        try:
+            refresh_token = request.data.get("refresh")
+            token = RefreshToken(refresh_token)
+            token.blacklist()  # Marca el token como inválido
+            return Response({"message": "Sesión cerrada correctamente"}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"error": "Token inválido o ya expirado"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Código anterior basado en cookies (comentado):
+        # if request.user.is_authenticated:
+        #     logout(request)
+        #     return Response({"message": "Sesión cerrada"}, status=status.HTTP_200_OK)
+        # else:
+        #     return Response({"error": "No hay sesión activa"}, status=status.HTTP_400_BAD_REQUEST)
 
 class CreateUserByAdminView(generics.CreateAPIView):
     serializer_class = serializer.UserCreateByAdminSerializer
@@ -118,3 +134,11 @@ class CreateBranchByAdminView(generics.CreateAPIView):
         if user.role != 'admin':
             raise serializers.ValidationError({"detail": "Solo los administradores pueden crear usuarios."})
         serializer.save()
+        
+def current_user(request):
+    user = request.user
+    return Response({
+        "username": user.username,
+        "email": user.email,
+        "role": user.rol,
+    })
