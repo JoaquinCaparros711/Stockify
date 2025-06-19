@@ -25,5 +25,7 @@ urlpatterns = [
     path('api/', include('control.urls')),
     path('api/user/', include('user_control.urls')),
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
-    path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
+    #path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
+    path('api/schema/no-use/', SpectacularAPIView.as_view(), name='schema'),  # Ruta para el esquema de la API
+    path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),  # Referencia al esquema
 ]
