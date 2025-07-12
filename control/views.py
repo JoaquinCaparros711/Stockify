@@ -52,13 +52,13 @@ class ProductView(viewsets.ModelViewSet):
             return Product.objects.filter(company=user.company)
         return Product.objects.none()
     
-    def get_permissions(self):
-        user = self.request.user
+    # def get_permissions(self):
+    #     user = self.request.user
 
-        if self.action in ['update', 'partial_update', 'destroy']:
-            if user.role != 'admin':
-                raise PermissionDenied("Solo los administradores pueden modificar o eliminar productos.")
-        return super().get_permissions()
+    #     if self.action in ['update', 'partial_update', 'destroy']:
+    #         if user.role != 'admin':
+    #             raise PermissionDenied("Solo los administradores pueden modificar o eliminar productos.")
+    #     return super().get_permissions()
 
     def perform_create(self, serializer):
         serializer.save(company=self.request.user.company)
