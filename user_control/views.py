@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from django.contrib.auth import authenticate, login, logout
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from user_control.models import Users
-from .serializer import UserSerializer
+from .serializer import UserSerializer, UserUpdateSerializer
 from rest_framework import generics, permissions, viewsets, status, serializers
 from user_control import serializer
 from user_control.permissions import IsAdminUserCustom
@@ -21,21 +21,27 @@ class UserView(viewsets.ModelViewSet):
         if self.action == 'create':
             return [AllowAny()]
         return super().get_permissions()
+    
+    def get_serializer_class(self):
+        """
+        Elige un serializer diferente según la acción.
+        """
+        if self.action in ['update', 'partial_update']:
+            return UserUpdateSerializer
+        return super().get_serializer_class() # Usa el default para el resto
 
     def get_queryset(self):
+        """
+        Esta es la lógica corregida.
+        Ahora, tanto el admin como el empleado recibirán la lista
+        completa de usuarios de su empresa.
+        """
         user = self.request.user
-
-        if not user.is_authenticated:
-            # Si no está autenticado, no puede ver nada
-            return Users.objects.none()
-
-        if user.role == 'admin':
-            # Admin ve todos los usuarios de su empresa
+        if user.is_authenticated:
+            # Devuelve todos los usuarios que pertenecen a la misma compañía.
             return Users.objects.filter(company=user.company)
-        elif user.role == 'employee':
-            # Empleado solo ve sus propios datos
-            return Users.objects.filter(pk=user.pk)
-
+        
+        # Si no está autenticado, no devuelve nada.
         return Users.objects.none()
 
     def create(self, request, *args, **kwargs):

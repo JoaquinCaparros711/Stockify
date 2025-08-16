@@ -45,6 +45,37 @@ class BranchSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("El número no puede contener letras.")
         return value
 
+    # --- MÉTODO DE VALIDACIÓN AÑADIDO ---
+    def validate(self, attrs):
+        """
+        Verifica que el nombre de la sucursal sea único para la compañía del usuario.
+        """
+        # Obtenemos el request del contexto para acceder al usuario logueado
+        request = self.context.get('request')
+        if not request or not hasattr(request, "user"):
+            return attrs # No podemos validar si no tenemos el contexto del request
+
+        company = request.user.company
+        name = attrs.get('name')
+
+        # Construimos la consulta para buscar duplicados (ignorando mayúsculas/minúsculas)
+        queryset = Branch.objects.filter(company=company, name__iexact=name)
+
+        # Si estamos actualizando (self.instance existe), debemos excluir
+        # el objeto actual de la búsqueda. Esto permite guardar el formulario
+        # sin cambiar el nombre, pero sin que dé un falso error de duplicado.
+        if self.instance:
+            queryset = queryset.exclude(pk=self.instance.pk)
+
+        # Si la consulta encuentra algún resultado, significa que el nombre ya existe.
+        if queryset.exists():
+            # Lanzamos un error de validación que el front-end recibirá.
+            raise serializers.ValidationError({
+                'name': 'Ya existe una sucursal con este nombre en tu empresa.'
+            })
+            
+        return attrs
+
     
     
 
@@ -134,25 +165,45 @@ class BranchStockSerializer(serializers.ModelSerializer):
 
         
 class StockMovementSerializer(serializers.ModelSerializer):
+    # Ya no necesitamos los 'source' porque ahora son campos del modelo.
+    # Los definimos como read_only porque se calcularán automáticamente.
+    user_name = serializers.CharField(read_only=True)
+    product_name = serializers.CharField(read_only=True)
+    branch_name = serializers.CharField(read_only=True)
+    price_at_movement = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+
     class Meta:
         model = StockMovement
-        fields = ['id', 'movement_type', 'quantity', 'description', 'product', 'branch']
-        
+        # Añadimos el nuevo campo de precio
+        fields = [
+            'id', 'movement_type', 'quantity', 'description', 
+            'product', 'branch', 'date', 'user', 
+            'user_name', 'product_name', 'branch_name', 'price_at_movement'
+        ]
+        # Ya no es necesario 'write_only' en branch y user si los IDs son útiles en el frontend
+        extra_kwargs = {
+            'user': {'required': False} # El usuario se tomará del request
+        }
+
+    # Tus métodos __init__ y validate_quantity están bien.
     def validate_quantity(self, value):
-        if value < 0:
-            raise serializers.ValidationError("El stock actual no puede ser menor a 0.")
+        if value <= 0:
+            raise serializers.ValidationError("La cantidad debe ser mayor a 0.")
         return value
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         request = self.context.get('request')
         if request and hasattr(request.user, 'company'):
-            # Filtrar sucursales según el rol
             if request.user.role == 'admin':
                 self.fields['branch'].queryset = Branch.objects.filter(company=request.user.company)
                 self.fields['product'].queryset = Product.objects.filter(company=request.user.company)
             elif request.user.role == 'employee':
-                self.fields['branch'].queryset = Branch.objects.filter(pk=request.user.branch_id)
+                # Asegúrate que el empleado tenga un branch_id, si no, esto puede fallar.
+                if request.user.branch_id:
+                    self.fields['branch'].queryset = Branch.objects.filter(pk=request.user.branch_id)
+                else:
+                    self.fields['branch'].queryset = Branch.objects.none() # No puede seleccionar sucursal si no tiene una
                 self.fields['product'].queryset = Product.objects.filter(company=request.user.company)
 
     def validate(self, attrs):
@@ -164,7 +215,6 @@ class StockMovementSerializer(serializers.ModelSerializer):
         if quantity == 0:
             raise serializers.ValidationError('No puede ingresar o sacar cantidad 0')
 
-        # Validar si hay stock suficiente antes de restar
         if movement_type == 'outgoing':
             branch_stock = BranchStock.objects.filter(branch=branch, product=product).first()
             available = branch_stock.current_stock if branch_stock else 0
@@ -174,24 +224,34 @@ class StockMovementSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data):
-        request = self.context.get('request')
-        validated_data['user'] = request.user
+        # --- LÓGICA DE "CONGELADO" DE DATOS ---
+        # Obtenemos los objetos completos desde los datos validados
+        product = validated_data.get('product')
+        branch = validated_data.get('branch')
+        user = self.context['request'].user # Obtenemos el usuario que hace la petición
 
-        branch = validated_data['branch']
-        product = validated_data['product']
+        # Asignamos los datos "congelados" a los campos correspondientes
+        validated_data['product_name'] = product.name
+        validated_data['branch_name'] = branch.name
+        validated_data['user_name'] = user.name  # O user.username, como prefieras
+        validated_data['price_at_movement'] = product.price
+        validated_data['user'] = user # Asignamos el usuario al ForeignKey
+
+        # --- Lógica de actualización de stock (sin cambios) ---
         quantity = validated_data['quantity']
         movement_type = validated_data['movement_type']
 
         branch_stock, _ = BranchStock.objects.get_or_create(
-            branch=branch,
+            branch=branch, 
             product=product,
             defaults={'current_stock': 0}
         )
 
-        # Ya está validado que hay stock suficiente
         if movement_type == 'incoming':
             branch_stock.current_stock += quantity
         elif movement_type == 'outgoing':
+            if branch_stock.current_stock < quantity:
+                raise serializers.ValidationError(f"Stock insuficiente para {product.name}. Disponible: {branch_stock.current_stock}")
             branch_stock.current_stock -= quantity
 
         branch_stock.save()

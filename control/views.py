@@ -2,7 +2,7 @@ from django.shortcuts import render
 from .serializer import *
 from .models import *
 from rest_framework import permissions, viewsets, mixins
-from user_control.permissions import IsAdminUserCustom
+from user_control.permissions import IsAdminUserCustom, IsAdminOrReadOnly
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import MethodNotAllowed, PermissionDenied
 
@@ -18,28 +18,54 @@ class CompanyView(mixins.UpdateModelMixin, mixins.RetrieveModelMixin, viewsets.G
 
 
 
-class BranchView(
-    mixins.RetrieveModelMixin,
-    mixins.UpdateModelMixin,
-    mixins.DestroyModelMixin,
-    mixins.ListModelMixin,
-    viewsets.GenericViewSet
-):
-    permission_classes = [permissions.IsAuthenticated, IsAdminUserCustom]
+class BranchView(viewsets.ModelViewSet): # Usar ModelViewSet simplifica los mixins
+    """
+    ViewSet para gestionar las sucursales.
+    Solo los administradores pueden crear, actualizar o eliminar sucursales.
+    Todos los usuarios autenticados de la empresa pueden ver la lista.
+    """
     serializer_class = BranchSerializer
+    permission_classes = [IsAdminOrReadOnly] # 👈 --- 2. APLICA EL NUEVO PERMISO
 
     def get_queryset(self):
+        """
+        Esta vista solo debe devolver las sucursales
+        pertenecientes a la empresa del usuario logueado.
+        """
+        # Esta línea ya asegura que un usuario solo pueda operar
+        # sobre sucursales de su propia empresa.
         return Branch.objects.filter(company=self.request.user.company)
 
+    def perform_create(self, serializer):
+        """
+        Al crear una nueva sucursal, la asocia automáticamente
+        a la empresa del usuario administrador que realiza la petición.
+        """
+        # La validación de nombre duplicado está mejor en el serializer,
+        # pero la dejamos aquí por ahora. Funciona bien.
+        company = self.request.user.company
+        name = serializer.validated_data.get('name')
+        if Branch.objects.filter(company=company, name__iexact=name).exists():
+            raise serializers.ValidationError({'name': 'Ya existe una sucursal con este nombre en tu empresa.'})
+        
+        serializer.save(company=company)
+
     def perform_update(self, serializer):
+        """
+        Asegura que un admin solo pueda actualizar sucursales de su propia empresa.
+        """
         if serializer.instance.company != self.request.user.company:
-            raise serializers.ValidationError("No tienes permiso para modificar esta sucursal.")
+            raise PermissionDenied("No tienes permiso para modificar esta sucursal.")
         serializer.save()
 
     def perform_destroy(self, instance):
+        """
+        Asegura que un admin solo pueda eliminar sucursales de su propia empresa.
+        """
         if instance.company != self.request.user.company:
-            raise serializers.ValidationError("No tienes permiso para eliminar esta sucursal.")
+            raise PermissionDenied("No tienes permiso para eliminar esta sucursal.")
         instance.delete()
+
     
 
 class ProductView(viewsets.ModelViewSet):
