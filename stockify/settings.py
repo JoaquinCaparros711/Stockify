@@ -12,6 +12,8 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 
 from pathlib import Path
 from datetime import timedelta
+import dj_database_url
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -24,9 +26,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-70w=hva5_o#falyy_eb_wdrz7zw@6gu55@br4vpvkgofye06wr'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['.railway.app', 'localhost']
 
 
 # Application definition
@@ -82,17 +84,8 @@ WSGI_APPLICATION = 'stockify.wsgi.application'
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'stockify_db',  
-        'USER': 'stockify_user',         
-        'PASSWORD': '9Slik4BanFXQ',  
-        'HOST': 'localhost',          
-        'PORT': '3306',               
-        'OPTIONS': {
-            'charset': 'utf8mb4',  
-        }
-    }
+    # Lee la variable de entorno DATABASE_URL que Railway nos dará
+    'default': dj_database_url.config(conn_max_age=600)
 }
 
 # DATABASES = {
