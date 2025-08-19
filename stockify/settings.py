@@ -164,5 +164,6 @@ SIMPLE_JWT = {
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
+    "https://stockify-front-end-production.up.railway.app/",
 ]
 AUTH_USER_MODEL = 'user_control.Users'
