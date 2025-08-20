@@ -116,6 +116,7 @@ REST_FRAMEWORK = {
     ],
 }
 
+
 # Usuario custom
 AUTH_USER_MODEL = "user_control.Users"
 
