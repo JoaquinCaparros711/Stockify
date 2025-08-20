@@ -10,16 +10,13 @@ import os
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Clave secreta desde variable de entorno
-SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "insecure-secret-key")
+SECRET_KEY = os.environ.get('SECRET_KEY')
 
 # DEBUG configurable
-DEBUG = os.getenv("DEBUG", "False").lower() == "true"
+DEBUG = os.environ.get('DEBUG', 'False').lower() in ('true', '1', 't')
 
 # Railway genera dominios *.railway.app
-ALLOWED_HOSTS = [
-    ".railway.app",
-    "localhost",
-]
+ALLOWED_HOSTS = [os.environ.get('ALLOWED_HOSTS')]
 
 # Para CSRF (si usás formularios/cookies)
 CSRF_TRUSTED_ORIGINS = [
@@ -77,7 +74,17 @@ WSGI_APPLICATION = "stockify.wsgi.application"
 
 # Base de datos (Railway inyecta DATABASE_URL automáticamente)
 DATABASES = {
-    'default': dj_database_url.parse(os.environ.get('MYSQL_URL'))
+    'default': {
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': os.environ.get('NAME'),
+        'USER': os.environ.get('USER'),
+        'PASSWORD': os.environ.get('PASSWORD'),
+        'HOST': os.environ.get('HOST'),
+        'PORT': os.environ.get('PORT'),
+        'OPTIONS': {
+            'charset': 'utf8mb4',
+        }
+    }
 }
 
 # Validadores de password
