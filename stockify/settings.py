@@ -76,7 +76,7 @@ WSGI_APPLICATION = "stockify.wsgi.application"
 
 # Base de datos (Railway inyecta DATABASE_URL automáticamente)
 DATABASES = {
-    "default": dj_database_url.config(conn_max_age=600)
+    'default': dj_database_url.parse(os.environ.get('MYSQL_URL'))
 }
 
 # Validadores de password
