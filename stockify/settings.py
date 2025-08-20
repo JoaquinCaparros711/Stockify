@@ -133,6 +133,7 @@ SIMPLE_JWT = {
 # CORS
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
-    "https://stockify-front-end-production.up.railway.app",  # sin / final
+    "https://stockify-production-7e3b.up.railway.app",  # sin / final
+    "https://stockify-front-end-production.up.railway.app",
 ]
 CORS_ALLOW_CREDENTIALS = True
