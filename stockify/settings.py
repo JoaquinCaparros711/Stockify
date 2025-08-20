@@ -74,17 +74,12 @@ WSGI_APPLICATION = "stockify.wsgi.application"
 
 # Base de datos (Railway inyecta DATABASE_URL automáticamente)
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': os.environ.get('NAME'),
-        'USER': os.environ.get('USER'),
-        'PASSWORD': os.environ.get('PASSWORD'),
-        'HOST': os.environ.get('HOST'),
-        'PORT': os.environ.get('PORT'),
-        'OPTIONS': {
-            'charset': 'utf8mb4',
-        }
-    }
+    'default': dj_database_url.config(
+        # 2. Le decimos que busque la variable 'MYSQL_URL' de tu captura
+        default=os.environ.get('MYSQL_URL'),
+        conn_max_age=600,
+        conn_health_checks=True,
+    )
 }
 
 # Validadores de password
