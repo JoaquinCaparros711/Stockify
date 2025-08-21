@@ -135,5 +135,6 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "https://stockify-production-7e3b.up.railway.app",  # sin / final
     "https://stockify-front-end-production.up.railway.app",
+    "https://stockifyjoaquin.netlify.app"
 ]
 CORS_ALLOW_CREDENTIALS = True
