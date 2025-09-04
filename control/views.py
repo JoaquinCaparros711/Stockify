@@ -6,7 +6,10 @@ from user_control.permissions import IsAdminUserCustom, IsAdminOrReadOnly
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import MethodNotAllowed, PermissionDenied
 
-
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import AllowAny
+from rest_framework import status
 
 # Create your views here.
 class CompanyView(mixins.UpdateModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
@@ -189,3 +192,16 @@ class StockMovementView(viewsets.ModelViewSet):
         if user.role != 'admin' or instance.branch.company != user.company:
             raise PermissionDenied("No puedes borrar stock de otra empresa o si no sos admin.")
         return super().destroy(request, *args, **kwargs)
+
+class HealthCheckView(APIView):
+    """
+    Vista simple para verificar que la API está en funcionamiento.
+    No requiere autenticación.
+    """
+    permission_classes = [AllowAny]  # Asegura que cualquiera pueda acceder
+
+    def get(self, request, *args, **kwargs):
+        """
+        Devuelve una respuesta simple 200 OK con un mensaje.
+        """
+        return Response({"status": "ok", "message": "API is running"}, status=status.HTTP_200_OK)
